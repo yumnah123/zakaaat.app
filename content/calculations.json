@@ -1,0 +1,32 @@
+[
+  {
+    "gold": "",
+    "silver": "",
+    "cash": "",
+    "bank": "",
+    "business": "",
+    "investments": "",
+    "property": "",
+    "other": "",
+    "liabilities": 0,
+    "created": "2025-08-31T18:37:09.236Z",
+    "totalAssets": 0,
+    "netAssets": 0,
+    "zakaat": 0
+  },
+  {
+    "gold": "24",
+    "silver": "23",
+    "cash": "1000",
+    "bank": "56",
+    "business": "24",
+    "investments": "23",
+    "property": "23",
+    "other": "23",
+    "liabilities": 23,
+    "created": "2025-08-31T18:39:14.980Z",
+    "totalAssets": 1196,
+    "netAssets": 1173,
+    "zakaat": 29.33
+  }
+]
