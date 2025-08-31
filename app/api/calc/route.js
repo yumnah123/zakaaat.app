@@ -1,7 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import { sql } from '@vercel/postgres';
 
-function safeNum(v){ return Number(String(v||'').replace(/[^0-9.-]+/g,'')) || 0; }
+function safeNum(v){ 
+  return Number(String(v||'').replace(/[^0-9.-]+/g,'')) || 0; 
+}
 
 export async function POST(req){
   try {
@@ -10,21 +11,15 @@ export async function POST(req){
     const liabilities = safeNum(body.liabilities);
     const netAssets = Math.max(0, totalAssets - liabilities);
     const zakaat = +(netAssets * 0.025).toFixed(2);
-    const record = { ...body, totalAssets, liabilities, netAssets, zakaat, created: body.created || new Date().toISOString() };
+    const created = new Date().toISOString();
 
-    // store in-memory (works on Vercel serverless)
-    if(!globalThis.kindlewayLogs) globalThis.kindlewayLogs = [];
-    globalThis.kindlewayLogs.push(record);
+    // save record to Postgres
+    await sql`
+      INSERT INTO zakat_logs (gold, silver, cash, bank, business, investments, property, other, liabilities, total_assets, net_assets, zakaat, created)
+      VALUES (${body.gold}, ${body.silver}, ${body.cash}, ${body.bank}, ${body.business}, ${body.investments}, ${body.property}, ${body.other}, ${liabilities}, ${totalAssets}, ${netAssets}, ${zakaat}, ${created})
+    `;
 
-    // best-effort persist to content file when the environment allows it (local dev)
-    try {
-      const file = path.join(process.cwd(),'content','calculations.json');
-      const arr = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file,'utf-8')) : [];
-      arr.push(record);
-      fs.writeFileSync(file, JSON.stringify(arr,null,2), 'utf-8');
-    } catch(e){ /* ignore persistence errors on Vercel */ }
-
-    return new Response(JSON.stringify({ totalAssets, liabilities, netAssets, zakaat, record }), { status: 200 });
+    return new Response(JSON.stringify({ totalAssets, liabilities, netAssets, zakaat, created }), { status: 200 });
   } catch(e){
     console.error(e);
     return new Response(JSON.stringify({ error:'calculation_failed' }), { status:500 });
