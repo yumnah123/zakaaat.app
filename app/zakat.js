@@ -20,9 +20,11 @@ export default function ZakatPage() {
   // --- Fetch logs ---
   async function fetchLogs() {
     try {
-      const res = await fetch("/api/zakat");
+      const res = await fetch("/api/zakat"); // adjust if backend is separate
       const data = await res.json();
-      setLogs(data.records || []);
+
+      // 🔥 FIX: backend returns array, not {records}
+      setLogs(Array.isArray(data) ? data : data.records || []);
     } catch (err) {
       console.error("Error fetching zakat logs:", err);
     } finally {
@@ -89,9 +91,9 @@ export default function ZakatPage() {
       {/* --- Calculation result --- */}
       {result && (
         <div className="mb-6 p-4 border rounded-lg bg-green-50">
-          <p><strong>Total Assets:</strong> {result.totalAssets}</p>
+          <p><strong>Total Assets:</strong> {result.total_assets}</p>
           <p><strong>Liabilities:</strong> {result.liabilities}</p>
-          <p><strong>Net Assets:</strong> {result.netAssets}</p>
+          <p><strong>Net Assets:</strong> {result.net_assets}</p>
           <p><strong>Zakaat:</strong> {result.zakaat}</p>
         </div>
       )}
