@@ -1,18 +1,25 @@
-import { stringify } from 'papaparse';
+import { sql } from "@vercel/postgres";
 
-export async function GET(){
+export async function GET() {
   try {
-    const logs = globalThis.kindlewayLogs || [];
-    const rows = logs.map(l => ({
-      created: l.created,
-      totalAssets: l.totalAssets,
-      liabilities: l.liabilities,
-      netAssets: l.netAssets,
-      zakaat: l.zakaat
-    }));
-    const csv = stringify(rows, { header: true });
-    return new Response(csv, { status:200, headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="zakaat_logs.csv"' } });
-  } catch(e){
-    return new Response('created,totalAssets,liabilities,netAssets,zakaat\n', { status:200, headers: { 'Content-Type': 'text/csv' } });
+    const { rows } = await sql`SELECT * FROM logs ORDER BY created DESC`;
+
+    const header = "Date,Net Assets,Zakaat\n";
+    const csv = rows
+      .map(
+        (r) =>
+          `${new Date(r.created).toISOString()},${r.netassets},${r.zakaat}`
+      )
+      .join("\n");
+
+    return new Response(header + csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv",
+        "Content-Disposition": "attachment; filename=logs.csv",
+      },
+    });
+  } catch (err) {
+    return new Response("Error generating CSV", { status: 500 });
   }
 }
