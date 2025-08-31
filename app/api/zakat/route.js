@@ -1,6 +1,5 @@
 import { sql } from '@vercel/postgres';
 
-// --- Utility: safe number parsing ---
 function safeNum(v) {
   return Number(String(v || '').replace(/[^0-9.-]+/g, '')) || 0;
 }
@@ -24,26 +23,6 @@ export async function POST(req) {
     const zakaat = +(netAssets * 0.025).toFixed(2);
     const created = new Date().toISOString();
 
-    // ✅ Ensure table exists
-    await sql`
-      CREATE TABLE IF NOT EXISTS zakat_logs (
-        id SERIAL PRIMARY KEY,
-        gold NUMERIC,
-        silver NUMERIC,
-        cash NUMERIC,
-        bank NUMERIC,
-        business NUMERIC,
-        investments NUMERIC,
-        property NUMERIC,
-        other NUMERIC,
-        liabilities NUMERIC,
-        total_assets NUMERIC,
-        net_assets NUMERIC,
-        zakaat NUMERIC,
-        created TIMESTAMP
-      );
-    `;
-
     await sql`
       INSERT INTO zakat_logs (
         gold, silver, cash, bank, business, investments, property, other,
@@ -56,10 +35,34 @@ export async function POST(req) {
       )
     `;
 
-    return Response.json({ totalAssets, liabilities, netAssets, zakaat, created });
+    // ✅ wrap in { records: [...] } so frontend stays the same
+    return new Response(
+      JSON.stringify({
+        records: [
+          {
+            gold: body.gold,
+            silver: body.silver,
+            cash: body.cash,
+            bank: body.bank,
+            business: body.business,
+            investments: body.investments,
+            property: body.property,
+            other: body.other,
+            liabilities,
+            total_assets: totalAssets,
+            net_assets: netAssets,
+            zakaat,
+            created,
+          },
+        ],
+      }),
+      { status: 200 }
+    );
   } catch (err) {
     console.error("POST /api/zakat error:", err);
-    return Response.json({ error: "calculation_failed" }, { status: 500 });
+    return new Response(JSON.stringify({ error: "calculation_failed" }), {
+      status: 500,
+    });
   }
 }
 
@@ -69,15 +72,18 @@ export async function GET(req) {
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit")) || 100;
 
-    const result = await sql`
+    const { rows } = await sql`
       SELECT * FROM zakat_logs
       ORDER BY created DESC
       LIMIT ${limit}
     `;
 
-    return Response.json({ records: result.rows });
+    // ✅ wrap in { records: rows } so frontend matches
+    return new Response(JSON.stringify({ records: rows }), { status: 200 });
   } catch (err) {
     console.error("GET /api/zakat error:", err);
-    return Response.json({ error: "failed_to_fetch_records" }, { status: 500 });
+    return new Response(JSON.stringify({ error: "failed_to_fetch_records" }), {
+      status: 500,
+    });
   }
 }
