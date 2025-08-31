@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState, useEffect } from "react";
 
 export default function ZakatPage() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     gold: "",
     silver: "",
@@ -15,35 +14,29 @@ export default function ZakatPage() {
     other: "",
     liabilities: "",
   });
+
   const [result, setResult] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // --- Fetch logs ---
-  async function fetchLogs() {
-    try {
-      const res = await fetch("/api/zakat"); // adjust if backend is separate
-      const data = await res.json();
-
-      // 🔥 FIX: backend returns array, not {records}
-      setLogs(Array.isArray(data) ? data : data.records || []);
-    } catch (err) {
-      console.error("Error fetching zakat logs:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // Fetch logs on page load
   useEffect(() => {
     fetchLogs();
   }, []);
 
-  // --- Handle input ---
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  async function fetchLogs() {
+    try {
+      const res = await fetch("/api/zakat");
+      const data = await res.json();
+      setLogs(data.records || []);
+    } catch (err) {
+      console.error("❌ Failed to fetch logs", err);
+    }
+  }
 
-  // --- Submit form ---
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
+    setLoading(true);
     try {
       const res = await fetch("/api/zakat", {
         method: "POST",
@@ -52,84 +45,94 @@ export default function ZakatPage() {
       });
       const data = await res.json();
       setResult(data);
-      fetchLogs(); // refresh logs after saving
+      fetchLogs(); // refresh logs
     } catch (err) {
-      console.error("Error saving zakat:", err);
+      console.error("❌ Error submitting zakat", err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }
+
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Zakat Calculator</h1>
 
-      {/* --- Form --- */}
-      <form
-        onSubmit={handleSubmit}
-        className="grid grid-cols-2 gap-4 mb-6 p-4 border rounded-lg"
-      >
+      {/* Calculation Form */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 mb-6">
         {Object.keys(form).map((field) => (
-          <div key={field} className="flex flex-col">
-            <label className="capitalize mb-1">{field}</label>
+          <div key={field}>
+            <label className="block capitalize">{field}</label>
             <input
               type="number"
+              step="0.01"
               name={field}
               value={form[field]}
               onChange={handleChange}
-              className="border px-2 py-1 rounded"
-              placeholder="0"
+              className="border p-2 w-full rounded"
             />
           </div>
         ))}
+
         <button
           type="submit"
-          className="col-span-2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          disabled={loading}
+          className="col-span-2 bg-blue-600 text-white p-2 rounded mt-4"
         >
-          Calculate & Save
+          {loading ? "Calculating..." : "Calculate & Save"}
         </button>
       </form>
 
-      {/* --- Calculation result --- */}
+      {/* Latest Result */}
       {result && (
-        <div className="mb-6 p-4 border rounded-lg bg-green-50">
-          <p><strong>Total Assets:</strong> {result.total_assets}</p>
-          <p><strong>Liabilities:</strong> {result.liabilities}</p>
-          <p><strong>Net Assets:</strong> {result.net_assets}</p>
-          <p><strong>Zakaat:</strong> {result.zakaat}</p>
+        <div className="bg-green-100 p-4 rounded mb-6">
+          <p>Total Assets: {result.totalAssets}</p>
+          <p>Liabilities: {result.liabilities}</p>
+          <p>Net Assets: {result.netAssets}</p>
+          <p>Zakat (2.5%): {result.zakaat}</p>
+          <p>Date: {new Date(result.created).toLocaleDateString()}</p>
         </div>
       )}
 
-      {/* --- Logs --- */}
+      {/* Logs Table */}
       <h2 className="text-xl font-semibold mb-2">Zakat Logs</h2>
-      {loading ? (
-        <p>Loading...</p>
-      ) : logs.length === 0 ? (
-        <p className="text-gray-500">No records found.</p>
-      ) : (
-        <table className="min-w-full border border-gray-300">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border px-4 py-2">Date</th>
-              <th className="border px-4 py-2">Total Assets</th>
-              <th className="border px-4 py-2">Liabilities</th>
-              <th className="border px-4 py-2">Net Assets</th>
-              <th className="border px-4 py-2">Zakaat</th>
+      <div className="overflow-x-auto">
+        <table className="min-w-full border text-sm">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="border p-2">Date</th>
+              <th className="border p-2">Total Assets</th>
+              <th className="border p-2">Liabilities</th>
+              <th className="border p-2">Net Assets</th>
+              <th className="border p-2">Zakat</th>
             </tr>
           </thead>
           <tbody>
-            {logs.map((log, i) => (
-              <tr key={i}>
-                <td className="border px-4 py-2">
-                  {new Date(log.created).toLocaleDateString("en-GB")}
+            {logs.length > 0 ? (
+              logs.map((log) => (
+                <tr key={log.id}>
+                  <td className="border p-2">
+                    {new Date(log.created).toLocaleDateString()}
+                  </td>
+                  <td className="border p-2">{log.total_assets}</td>
+                  <td className="border p-2">{log.liabilities}</td>
+                  <td className="border p-2">{log.net_assets}</td>
+                  <td className="border p-2">{log.zakaat}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="p-4 text-center">
+                  No records found
                 </td>
-                <td className="border px-4 py-2">{log.total_assets}</td>
-                <td className="border px-4 py-2">{log.liabilities}</td>
-                <td className="border px-4 py-2">{log.net_assets}</td>
-                <td className="border px-4 py-2">{log.zakaat}</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
 }

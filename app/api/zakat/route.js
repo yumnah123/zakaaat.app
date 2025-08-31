@@ -4,10 +4,11 @@ function safeNum(v) {
   return Number(String(v || '').replace(/[^0-9.-]+/g, '')) || 0;
 }
 
-// --- POST: Save new zakat calculation ---
+// --- POST: Save zakat record ---
 export async function POST(req) {
   try {
     const body = await req.json();
+
     const totalAssets =
       safeNum(body.gold) +
       safeNum(body.silver) +
@@ -35,55 +36,28 @@ export async function POST(req) {
       )
     `;
 
-    // ✅ wrap in { records: [...] } so frontend stays the same
-    return new Response(
-      JSON.stringify({
-        records: [
-          {
-            gold: body.gold,
-            silver: body.silver,
-            cash: body.cash,
-            bank: body.bank,
-            business: body.business,
-            investments: body.investments,
-            property: body.property,
-            other: body.other,
-            liabilities,
-            total_assets: totalAssets,
-            net_assets: netAssets,
-            zakaat,
-            created,
-          },
-        ],
-      }),
-      { status: 200 }
-    );
+    return Response.json({ totalAssets, liabilities, netAssets, zakaat, created });
   } catch (err) {
     console.error("POST /api/zakat error:", err);
-    return new Response(JSON.stringify({ error: "calculation_failed" }), {
-      status: 500,
-    });
+    return Response.json({ error: "calculation_failed" }, { status: 500 });
   }
 }
 
-// --- GET: Fetch zakat records ---
+// --- GET: Fetch zakat logs ---
 export async function GET(req) {
   try {
     const url = new URL(req.url);
-    const limit = parseInt(url.searchParams.get("limit")) || 100;
+    const limit = parseInt(url.searchParams.get("limit")) || 50;
 
     const { rows } = await sql`
       SELECT * FROM zakat_logs
       ORDER BY created DESC
-      LIMIT ${limit}
+      LIMIT ${limit};
     `;
 
-    // ✅ wrap in { records: rows } so frontend matches
-    return new Response(JSON.stringify({ records: rows }), { status: 200 });
+    return Response.json({ records: rows });
   } catch (err) {
     console.error("GET /api/zakat error:", err);
-    return new Response(JSON.stringify({ error: "failed_to_fetch_records" }), {
-      status: 500,
-    });
+    return Response.json({ error: "failed_to_fetch_records" }, { status: 500 });
   }
 }
